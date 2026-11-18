@@ -4001,9 +4001,9 @@
       renderActiveSheet();
     };
   </script>
-<!-- KODE SINKRONISASI OTOMATIS KE GOOGLE FIREBASE V2 -->
+<!-- KODE SINKRONISASI OTOMATIS KE GOOGLE FIREBASE V3 -->
 <script>
-  const FIREBASE_DB_URL = "https://daftar-nilai-kelas-5-sdn-4-plb-default-rtdb.asia-southeast1.firebasedatabase.app";
+  const FIREBASE_DB_URL = "https://firebasedatabase.app";
 
   (function() {
     const dbEndpoint = FIREBASE_DB_URL.replace(/\/$/, "") + "/data_nilai_kls5.json";
@@ -4023,9 +4023,11 @@
             }
           }
           lastJsonSent = JSON.stringify(cloudData);
-          if (berubah) {
-            if (typeof renderActiveSheet === "function") renderActiveSheet();
-            if (typeof renderSheetTabs === "function") renderSheetTabs();
+          if (berubah && !sessionStorage.getItem("sudah_reload_cloud")) {
+            sessionStorage.setItem("sudah_reload_cloud", "1");
+            location.reload();
+          } else {
+            sessionStorage.removeItem("sudah_reload_cloud");
           }
         }
       } catch (e) {
