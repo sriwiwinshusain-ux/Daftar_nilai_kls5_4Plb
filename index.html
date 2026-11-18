@@ -4001,5 +4001,64 @@
       renderActiveSheet();
     };
   </script>
+<!-- KODE SINKRONISASI OTOMATIS KE GOOGLE FIREBASE -->
+<script>
+  const FIREBASE_DB_URL = "https://firebasedatabase.app";
+
+  (function() {
+    const dbEndpoint = FIREBASE_DB_URL.replace(/\/$/, "") + "/data_nilai_kls5.json";
+    let sedangMemuatDariCloud = false;
+
+    async function muatDataDariCloud() {
+      try {
+        const res = await fetch(dbEndpoint);
+        const cloudData = await res.json();
+        if (cloudData && typeof cloudData === "object") {
+          let adaPerubahan = false;
+          for (const key in cloudData) {
+            if (localStorage.getItem(key) !== cloudData[key]) {
+              sedangMemuatDariCloud = true;
+              localStorage.setItem(key, cloudData[key]);
+              sedangMemuatDariCloud = false;
+              adaPerubahan = true;
+            }
+          }
+          if (adaPerubahan && !sessionStorage.getItem("sudah_sinkron_awal")) {
+            sessionStorage.setItem("sudah_sinkron_awal", "true");
+            location.reload();
+          }
+        }
+      } catch (err) {
+        console.error("Gagal memuat dari cloud:", err);
+      }
+    }
+
+    async function simpanSemuaKeCloud() {
+      if (sedangMemuatDariCloud) return;
+      const semuaData = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        semuaData[k] = localStorage.getItem(k);
+      }
+      try {
+        await fetch(dbEndpoint, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(semuaData)
+        });
+      } catch (err) {
+        console.error("Gagal menyimpan ke cloud:", err);
+      }
+    }
+
+    const originalSetItem = localStorage.setItem;
+    localStorage.setItem = function(key, value) {
+      originalSetItem.apply(this, arguments);
+      simpanSemuaKeCloud();
+    };
+
+    window.addEventListener("load", muatDataDariCloud);
+  })();
+</script>
 
 </body></html>
