@@ -4001,63 +4001,67 @@
       renderActiveSheet();
     };
   </script>
-<!-- KODE SINKRONISASI OTOMATIS KE GOOGLE FIREBASE -->
+<!-- KODE SINKRONISASI OTOMATIS KE GOOGLE FIREBASE V2 -->
 <script>
   const FIREBASE_DB_URL = "https://firebasedatabase.app";
 
   (function() {
     const dbEndpoint = FIREBASE_DB_URL.replace(/\/$/, "") + "/data_nilai_kls5.json";
-    let sedangMemuatDariCloud = false;
+    let lastJsonSent = "";
+    let isSyncing = false;
 
-    async function muatDataDariCloud() {
+    async function tarikDariCloud() {
       try {
-        const res = await fetch(dbEndpoint);
+        const res = await fetch(dbEndpoint + "?t=" + Date.now());
         const cloudData = await res.json();
         if (cloudData && typeof cloudData === "object") {
-          let adaPerubahan = false;
+          let berubah = false;
           for (const key in cloudData) {
             if (localStorage.getItem(key) !== cloudData[key]) {
-              sedangMemuatDariCloud = true;
               localStorage.setItem(key, cloudData[key]);
-              sedangMemuatDariCloud = false;
-              adaPerubahan = true;
+              berubah = true;
             }
           }
-          if (adaPerubahan && !sessionStorage.getItem("sudah_sinkron_awal")) {
-            sessionStorage.setItem("sudah_sinkron_awal", "true");
-            location.reload();
+          lastJsonSent = JSON.stringify(cloudData);
+          if (berubah) {
+            if (typeof renderActiveSheet === "function") renderActiveSheet();
+            if (typeof renderSheetTabs === "function") renderSheetTabs();
           }
         }
-      } catch (err) {
-        console.error("Gagal memuat dari cloud:", err);
+      } catch (e) {
+        console.error("Gagal tarik cloud:", e);
       }
     }
 
-    async function simpanSemuaKeCloud() {
-      if (sedangMemuatDariCloud) return;
+    async function kirimKeCloud() {
+      if (isSyncing) return;
       const semuaData = {};
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         semuaData[k] = localStorage.getItem(k);
       }
+      const currentJson = JSON.stringify(semuaData);
+      if (currentJson === "{}" || currentJson === lastJsonSent) return;
+
+      isSyncing = true;
       try {
         await fetch(dbEndpoint, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(semuaData)
+          body: currentJson
         });
-      } catch (err) {
-        console.error("Gagal menyimpan ke cloud:", err);
+        lastJsonSent = currentJson;
+      } catch (e) {
+        console.error("Gagal kirim cloud:", e);
+      } finally {
+        isSyncing = false;
       }
     }
 
-    const originalSetItem = localStorage.setItem;
-    localStorage.setItem = function(key, value) {
-      originalSetItem.apply(this, arguments);
-      simpanSemuaKeCloud();
-    };
-
-    window.addEventListener("load", muatDataDariCloud);
+    window.addEventListener("load", async () => {
+      await tarikDariCloud();
+      setInterval(kirimKeCloud, 3000);
+    });
   })();
 </script>
 
